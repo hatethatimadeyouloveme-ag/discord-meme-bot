@@ -1,0 +1,24 @@
+name: Kirim Meme Otomatis
+
+on:
+  schedule:
+    # Mengatur bot agar jalan otomatis setiap 30 menit sekali
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Biar bisa kamu klik tes manual kapan saja
+
+jobs:
+  send-meme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ambil Meme dari Reddit & Tembak ke Webhook
+        run: |
+          # Ambil data meme terbaru dari Reddit r/memes
+          MEME_DATA=$(curl -s "https://meme-api.com")
+          MEME_URL=$(echo "$MEME_DATA" | grep -o '"url":"[^"]*' | grep -o '[^"]*$' | head -n 1)
+          MEME_TITLE=$(echo "$MEME_DATA" | grep -o '"title":"[^"]*' | grep -o '[^"]*$' | head -n 1)
+          
+          # Kirim ke Webhook Discord kamu
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{\"content\": \"**$MEME_TITLE**\n$MEME_URL\"}" \
+               "https://discordapp.com/api/webhooks/1556674672853123222/nBYvt7DGGhWqrs6pq62cO7o7ZYPo9UMVodAe9CUGPMKtu01Sy2K0sSjeTa8HJYTDbOmB"
