@@ -1,24 +1,39 @@
-name: Kirim Meme Otomatis
+name: Reddit Meme ke Discord
 
 on:
   schedule:
-    # Mengatur bot agar jalan otomatis setiap 30 menit sekali
-    - cron: '*/30 * * * *'
-  workflow_dispatch: # Biar bisa kamu klik tes manual kapan saja
+    - cron: "0 */6 * * *"   # tiap 6 jam (UTC). Ubah sesuai kebutuhan
+  workflow_dispatch:         # biar bisa dijalankan manual dari tab Actions
 
 jobs:
-  send-meme:
+  post-meme:
     runs-on: ubuntu-latest
     steps:
-      - name: Ambil Meme dari Reddit & Tembak ke Webhook
+      - name: Ambil meme dan kirim ke Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # Ambil data meme terbaru dari Reddit r/memes
-          MEME_DATA=$(curl -s "https://meme-api.com")
-          MEME_URL=$(echo "$MEME_DATA" | grep -o '"url":"[^"]*' | grep -o '[^"]*$' | head -n 1)
-          MEME_TITLE=$(echo "$MEME_DATA" | grep -o '"title":"[^"]*' | grep -o '[^"]*$' | head -n 1)
-          
-          # Kirim ke Webhook Discord kamu
-          curl -H "Content-Type: application/json" \
-               -X POST \
-               -d "{\"content\": \"**$MEME_TITLE**\n$MEME_URL\"}" \
-               "https://discordapp.com/api/webhooks/1556674672853123222/nBYvt7DGGhWqrs6pq62cO7o7ZYPo9UMVodAe9CUGPMKtu01Sy2K0sSjeTa8HJYTDbOmB"
+          set -euo pipefail
+
+          # Coba sampai 5x supaya dapat meme yang bukan NSFW
+          for i in 1 2 3 4 5; do
+            RESP=$(curl -fsS "https://meme-api.com/gimme/memes")
+            NSFW=$(echo "$RESP" | jq -r '.nsfw')
+            [ "$NSFW" = "false" ] && break
+          done
+
+          if [ "$NSFW" != "false" ]; then
+            echo "Tidak dapat meme aman, dilewati."
+            exit 0
+          fi
+
+          jq -n --argjson m "$RESP" '{
+            username: "Meme Bot",
+            embeds: [{
+              title: $m.title,
+              url: $m.postLink,
+              image: { url: $m.url },
+              color: 16729344,
+              footer: { text: ("r/" + $m.subreddit + " 鈥� 馃憤 " + ($m.ups | tostring)) }
+            }]
+          }' | curl -fsS -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"
