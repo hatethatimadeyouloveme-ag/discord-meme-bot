@@ -34,6 +34,6 @@ jobs:
               url: $m.postLink,
               image: { url: $m.url },
               color: 16729344,
-              footer: { text: ("r/" + $m.subreddit + " 鈥� 馃憤 " + ($m.ups | tostring)) }
+              footer: { text: ("r/" + $m.subreddit + " | upvote: " + ($m.ups | tostring)) }
             }]
           }' | curl -fsS -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"
